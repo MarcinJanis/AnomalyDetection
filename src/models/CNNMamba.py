@@ -32,7 +32,10 @@ class DroneDetectorMamba(nn.Module):
 
         self.mel_features = n_mels // 16 
         self.mamba_d_model = 256 * self.mel_features 
-      
+
+        self.norm1 = nn.LayerNorm(self.mamba_d_model)
+        self.norm2 = nn.LayerNorm(self.mamba_d_model)
+        
         self.mamba1 = Mamba(
             d_model=self.mamba_d_model, 
             d_state=16,  
@@ -75,12 +78,11 @@ class DroneDetectorMamba(nn.Module):
         x = self.conv3(x)  
         x = self.conv4(x)  # shape: (batch, 256, n_mels//16, time//16)
 
-     
         b, c, mel, t = x.shape
         x = x.permute(0, 3, 1, 2).contiguous().view(b, t, c * mel) 
 
-        x = self.mamba1(x)
-        x = self.mamba2(x)
+        x = x + self.norm1(self.mamba1(x))
+        x = x + self.norm2(self.mamba2(x))
 
         x = x.mean(dim=1) 
         x = self.classifier(x)
