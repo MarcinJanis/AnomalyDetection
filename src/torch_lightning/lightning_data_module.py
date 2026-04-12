@@ -7,8 +7,7 @@ from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 
 from src.transforms.spectrogram import MelSpectrogramTransform
-from src.data.download_drone_audio import download_and_extract_drone_audio_dataset
-
+from src.data_download.download_drone_audio import download_and_extract_drone_audio_dataset
 
 class DroneAudioDataset(Dataset):
     def __init__(self, file_paths, labels, transform=None):

@@ -3,32 +3,35 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics import Accuracy, F1Score, ConfusionMatrix
 
-from src.models.CNNMamba import CNNMamba
+from src.models.CNNMamba import DroneDetectorMamba
 
 class DroneClassifier(pl.LightningModule):
-    def __init__(self, learning_rate: float = 1e-3):
+    def __init__(self, num_classes = 2, n_mels = 128, learning_rate = 1e-3):
         super().__init__()
         self.save_hyperparameters()
         self.learning_rate = learning_rate
 
-        self.model = CNNMamba()
+        self.model = DroneDetectorMamba(
+            num_classes=num_classes, 
+            n_mels=n_mels,
+            ch_in=1
+        )
         
-        metrics_task = 'binary'
-        self.train_acc = Accuracy(task=metrics_task)
-        self.val_acc = Accuracy(task=metrics_task)
-        self.test_acc = Accuracy(task=metrics_task)
-        self.test_f1 = F1Score(task=metrics_task)
-        self.conf_matrix = ConfusionMatrix(task=metrics_task)
+        self.train_acc = Accuracy(task='multiclass', num_classes=num_classes)
+        self.val_acc = Accuracy(task='multiclass', num_classes=num_classes)
+        self.test_acc = Accuracy(task='multiclass', num_classes=num_classes)
+        self.test_f1 = F1Score(task='multiclass', num_classes=num_classes)
+        self.conf_matrix = ConfusionMatrix(task='multiclass', num_classes=num_classes)
         
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, x):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        logits = self(x).squeeze()
-        loss = self.loss_fn(logits, y.float())
+        logits = self(x)
+        loss = self.loss_fn(logits, y)
         
         self.train_acc(logits, y)
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
@@ -37,8 +40,8 @@ class DroneClassifier(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        logits = self(x).squeeze()
-        loss = self.loss_fn(logits, y.float())
+        logits = self(x)
+        loss = self.loss_fn(logits, y)
         
         self.val_acc(logits, y)
         self.log('val_loss', loss, prog_bar=True)
@@ -46,8 +49,8 @@ class DroneClassifier(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        logits = self(x).squeeze()
-        loss = self.loss_fn(logits, y.float())
+        logits = self(x)
+        loss = self.loss_fn(logits, y)
         
         self.test_acc(logits, y)
         self.test_f1(logits, y)
