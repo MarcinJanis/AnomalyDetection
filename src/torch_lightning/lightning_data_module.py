@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 from src.transforms.spectrogram import MelSpectrogramTransform
 from src.data_download.download_drone_audio import download_and_extract_drone_audio_dataset
 
+
 class DroneAudioDataset(Dataset):
     def __init__(self, file_paths, labels, transform=None):
         self.file_paths = file_paths
@@ -22,13 +23,11 @@ class DroneAudioDataset(Dataset):
         audio_path = self.file_paths[idx]
         label = self.labels[idx]
 
-        # mono=False żeby w razie stereo dostać pełne dane
         waveform, sr = librosa.load(audio_path, sr=None, mono=False)
 
         if self.transform is not None:
             x = self.transform(waveform, sr)
         else:
-            # gdyby transform był None, zamieniamy na tensor
             if waveform.ndim == 1:
                 x = torch.tensor(waveform, dtype=torch.float32).unsqueeze(0)
             else:
@@ -43,6 +42,7 @@ class DroneDataModule(pl.LightningDataModule):
         self,
         root_dir="data",
         dataset_type="binary",   # "binary" albo "multiclass"
+        variant="original",      # "original", "noisy", "noisy_kalman"
         batch_size=16,
         num_workers=0,
         sample_rate=16000,
@@ -50,6 +50,9 @@ class DroneDataModule(pl.LightningDataModule):
         n_mels=128,
         n_fft=1024,
         hop_length=256,
+        noise_std=0.01,
+        kalman_q=1e-5,
+        kalman_r=1e-3,
         train_ratio=0.7,
         val_ratio=0.15,
         test_ratio=0.15,
@@ -59,6 +62,7 @@ class DroneDataModule(pl.LightningDataModule):
 
         self.root_dir = root_dir
         self.dataset_type = dataset_type
+        self.variant = variant
 
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -68,6 +72,10 @@ class DroneDataModule(pl.LightningDataModule):
         self.n_mels = n_mels
         self.n_fft = n_fft
         self.hop_length = hop_length
+
+        self.noise_std = noise_std
+        self.kalman_q = kalman_q
+        self.kalman_r = kalman_r
 
         self.train_ratio = train_ratio
         self.val_ratio = val_ratio
@@ -121,8 +129,6 @@ class DroneDataModule(pl.LightningDataModule):
             for root, _, files in os.walk(class_dir):
                 for file_name in files:
                     lower_name = file_name.lower()
-
-                    # ten dataset bywa różny, więc można dodać więcej rozszerzeń
                     if lower_name.endswith((".wav", ".mp3", ".flac", ".ogg", ".au")):
                         full_path = os.path.join(root, file_name)
                         file_paths.append(full_path)
@@ -163,19 +169,27 @@ class DroneDataModule(pl.LightningDataModule):
             duration=self.duration,
             n_mels=self.n_mels,
             n_fft=self.n_fft,
-            hop_length=self.hop_length
+            hop_length=self.hop_length,
+            variant=self.variant,
+            noise_std=self.noise_std,
+            kalman_q=self.kalman_q,
+            kalman_r=self.kalman_r,
         )
 
         self.train_dataset = DroneAudioDataset(train_paths, train_labels, transform=transform)
         self.val_dataset = DroneAudioDataset(val_paths, val_labels, transform=transform)
         self.test_dataset = DroneAudioDataset(test_paths, test_labels, transform=transform)
 
+        print("=" * 60)
         print("Dataset root:", self.root_dir)
         print("Selected data dir:", self.data_dir)
+        print("Dataset type:", self.dataset_type)
+        print("Variant:", self.variant)
         print("Class to idx:", self.class_to_idx)
         print("Train size:", len(self.train_dataset))
         print("Val size:", len(self.val_dataset))
         print("Test size:", len(self.test_dataset))
+        print("=" * 60)
 
     def train_dataloader(self):
         return DataLoader(

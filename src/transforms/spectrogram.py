@@ -13,7 +13,11 @@ class MelSpectrogramTransform:
         hop_length=256,
         f_min=0.0,
         f_max=None,
-        power=2.0
+        power=2.0,
+        variant="original",  # "original", "noisy", "noisy_kalman"
+        noise_std=0.01,
+        kalman_q=1e-5,
+        kalman_r=1e-3,
     ):
         self.sample_rate = sample_rate
         self.duration = duration
@@ -24,11 +28,18 @@ class MelSpectrogramTransform:
         self.f_max = f_max
         self.power = power
 
+        self.variant = variant
+        self.noise_std = noise_std
+        self.kalman_q = kalman_q
+        self.kalman_r = kalman_r
+
         self.target_num_samples = int(sample_rate * duration)
 
+        allowed = {"original", "noisy", "noisy_kalman"}
+        if self.variant not in allowed:
+            raise ValueError(f"variant must be one of {allowed}, got {self.variant}")
+
     def to_mono(self, waveform):
-        # waveform: numpy array
-        # może być [T] albo [channels, T]
         if waveform.ndim == 1:
             return waveform
 
@@ -58,10 +69,61 @@ class MelSpectrogramTransform:
 
         return waveform
 
+    def add_gaussian_noise(self, waveform):
+        noise = np.random.normal(0.0, self.noise_std, size=waveform.shape)
+        noisy = waveform + noise
+        noisy = np.clip(noisy, -1.0, 1.0)
+        return noisy.astype(np.float32)
+
+    def kalman_filter_1d(self, waveform):
+        """
+        Prosty skalarowy filtr Kalmana dla sygnału 1D.
+        Model:
+            x_k = x_{k-1} + w_k
+            z_k = x_k + v_k
+        """
+        filtered = np.zeros_like(waveform, dtype=np.float32)
+
+        x_est = float(waveform[0])
+        p = 1.0
+        q = self.kalman_q
+        r = self.kalman_r
+
+        for k in range(len(waveform)):
+            z = float(waveform[k])
+
+            # predykcja
+            x_pred = x_est
+            p_pred = p + q
+
+            # korekcja
+            k_gain = p_pred / (p_pred + r)
+            x_est = x_pred + k_gain * (z - x_pred)
+            p = (1.0 - k_gain) * p_pred
+
+            filtered[k] = x_est
+
+        return filtered
+
+    def apply_variant(self, waveform):
+        if self.variant == "original":
+            return waveform
+
+        if self.variant == "noisy":
+            return self.add_gaussian_noise(waveform)
+
+        if self.variant == "noisy_kalman":
+            waveform = self.add_gaussian_noise(waveform)
+            waveform = self.kalman_filter_1d(waveform)
+            return waveform
+
+        return waveform
+
     def __call__(self, waveform, sr):
         waveform = self.to_mono(waveform)
         waveform, sr = self.resample_if_needed(waveform, sr)
         waveform = self.pad_or_trim(waveform)
+        waveform = self.apply_variant(waveform)
 
         mel = librosa.feature.melspectrogram(
             y=waveform,
@@ -80,7 +142,5 @@ class MelSpectrogramTransform:
         mel_max = mel_db.max()
         mel_norm = (mel_db - mel_min) / (mel_max - mel_min + 1e-8)
 
-        # CNN zwykle chce [1, n_mels, time]
         mel_tensor = torch.tensor(mel_norm, dtype=torch.float32).unsqueeze(0)
-
         return mel_tensor

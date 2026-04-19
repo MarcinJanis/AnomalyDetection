@@ -1,0 +1,7 @@
+dataset_type,variant,num_classes,best_checkpoint,test_loss,test_acc,test_f1
+binary,original,2,logs\drone_mamba\binary_original\checkpoints\binary_original-epoch=16-val_acc=0.9932.ckpt,0.03614521026611328,0.9846329092979431,0.9624854326248169
+binary,noisy,2,logs\drone_mamba\binary_noisy\checkpoints\binary_noisy-epoch=00-val_acc=0.8752.ckpt,0.23327378928661346,0.8901536464691162,0.47094249725341797
+binary,noisy_kalman,2,logs\drone_mamba\binary_noisy_kalman\checkpoints\binary_noisy_kalman-epoch=00-val_acc=0.8752.ckpt,0.34620732069015503,0.8901536464691162,0.47094249725341797
+multiclass,original,3,logs\drone_mamba\multiclass_original\checkpoints\multiclass_original-epoch=01-val_acc=0.8934.ckpt,0.19987159967422485,0.88730788230896,0.3134298324584961
+multiclass,noisy,3,logs\drone_mamba\multiclass_noisy\checkpoints\multiclass_noisy-epoch=19-val_acc=0.9499.ckpt,0.10699865967035294,0.9385315775871277,0.6189506649971008
+multiclass,noisy_kalman,3,logs\drone_mamba\multiclass_noisy_kalman\checkpoints\multiclass_noisy_kalman-epoch=15-val_acc=0.9886.ckpt,0.06228507682681084,0.9812179803848267,0.9429124593734741
