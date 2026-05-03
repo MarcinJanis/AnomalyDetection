@@ -14,7 +14,7 @@ class MelSpectrogramTransform:
         f_min=0.0,
         f_max=None,
         power=2.0,
-        variant="original",  # "original", "noisy", "noisy_kalman"
+        variant="original",  # "original", "noisy", "noisy_kalman", "kalman"
         noise_std=0.01,
         kalman_q=1e-5,
         kalman_r=1e-3,
@@ -35,16 +35,16 @@ class MelSpectrogramTransform:
 
         self.target_num_samples = int(sample_rate * duration)
 
-        allowed = {"original", "noisy", "noisy_kalman"}
+        allowed = {"original", "noisy", "kalman", "noisy_kalman"}
         if self.variant not in allowed:
             raise ValueError(f"variant must be one of {allowed}, got {self.variant}")
 
     def to_mono(self, waveform):
         if waveform.ndim == 1:
-            return waveform
+            return waveform.astype(np.float32)
 
         if waveform.ndim == 2:
-            return np.mean(waveform, axis=0)
+            return np.mean(waveform, axis=0).astype(np.float32)
 
         raise ValueError(f"Unsupported waveform shape: {waveform.shape}")
 
@@ -53,10 +53,11 @@ class MelSpectrogramTransform:
             waveform = librosa.resample(
                 waveform,
                 orig_sr=sr,
-                target_sr=self.sample_rate
+                target_sr=self.sample_rate,
             )
             sr = self.sample_rate
-        return waveform, sr
+
+        return waveform.astype(np.float32), sr
 
     def pad_or_trim(self, waveform):
         current_num_samples = waveform.shape[0]
@@ -67,50 +68,68 @@ class MelSpectrogramTransform:
             pad_amount = self.target_num_samples - current_num_samples
             waveform = np.pad(waveform, (0, pad_amount), mode="constant")
 
-        return waveform
+        return waveform.astype(np.float32)
 
     def add_gaussian_noise(self, waveform):
-        noise = np.random.normal(0.0, self.noise_std, size=waveform.shape)
-        noisy = waveform + noise
+        noise = np.random.normal(0.0, self.noise_std, size=waveform.shape).astype(np.float32)
+        noisy = waveform.astype(np.float32) + noise
         noisy = np.clip(noisy, -1.0, 1.0)
         return noisy.astype(np.float32)
 
     def kalman_filter_1d(self, waveform):
         """
-        Prosty skalarowy filtr Kalmana dla sygnału 1D.
+        Prosty skalarowy filtr Kalmana działający bezpośrednio na waveformie audio.
+
         Model:
             x_k = x_{k-1} + w_k
             z_k = x_k + v_k
+
+        gdzie:
+            Q = kalman_q -> wariancja szumu procesu
+            R = kalman_r -> wariancja szumu pomiaru
         """
+        waveform = waveform.astype(np.float32)
         filtered = np.zeros_like(waveform, dtype=np.float32)
+
+        if len(waveform) == 0:
+            return filtered
 
         x_est = float(waveform[0])
         p = 1.0
-        q = self.kalman_q
-        r = self.kalman_r
+        q = float(self.kalman_q)
+        r = float(self.kalman_r)
 
         for k in range(len(waveform)):
             z = float(waveform[k])
 
-            # predykcja
+            # 1. Predykcja: zakładamy, że kolejna próbka jest podobna do poprzedniego stanu.
             x_pred = x_est
             p_pred = p + q
 
-            # korekcja
+            # 2. Korekcja: łączymy predykcję z aktualnym pomiarem.
             k_gain = p_pred / (p_pred + r)
             x_est = x_pred + k_gain * (z - x_pred)
             p = (1.0 - k_gain) * p_pred
 
             filtered[k] = x_est
 
-        return filtered
+        return filtered.astype(np.float32)
 
     def apply_variant(self, waveform):
+        """
+        Wszystkie warianty działają teraz przed mel-spektrogramem, czyli na waveformie.
+        Nie ma już filtrowania Kalmana na mel_db.
+        """
+        waveform = waveform.astype(np.float32)
+
         if self.variant == "original":
             return waveform
 
         if self.variant == "noisy":
             return self.add_gaussian_noise(waveform)
+
+        if self.variant == "kalman":
+            return self.kalman_filter_1d(waveform)
 
         if self.variant == "noisy_kalman":
             waveform = self.add_gaussian_noise(waveform)
@@ -120,11 +139,16 @@ class MelSpectrogramTransform:
         return waveform
 
     def __call__(self, waveform, sr):
+        # 1. Preprocessing waveformu
         waveform = self.to_mono(waveform)
         waveform, sr = self.resample_if_needed(waveform, sr)
         waveform = self.pad_or_trim(waveform)
+
+        # 2. Wariant eksperymentu: original/noisy/kalman/noisy_kalman
+        #    Kalman działa tutaj na waveformie, przed obliczeniem mel-spektrogramu.
         waveform = self.apply_variant(waveform)
 
+        # 3. Mel-spektrogram liczony już z gotowego waveformu.
         mel = librosa.feature.melspectrogram(
             y=waveform,
             sr=sr,
@@ -133,11 +157,12 @@ class MelSpectrogramTransform:
             n_mels=self.n_mels,
             fmin=self.f_min,
             fmax=self.f_max,
-            power=self.power
+            power=self.power,
         )
 
         mel_db = librosa.power_to_db(mel, ref=np.max)
 
+        # 4. Normalizacja mel-spektrogramu do zakresu [0, 1]
         mel_min = mel_db.min()
         mel_max = mel_db.max()
         mel_norm = (mel_db - mel_min) / (mel_max - mel_min + 1e-8)
