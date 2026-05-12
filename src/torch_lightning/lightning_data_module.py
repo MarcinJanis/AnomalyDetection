@@ -42,7 +42,7 @@ class DroneDataModule(pl.LightningDataModule):
         self,
         root_dir="data",
         dataset_type="binary",   # "binary" albo "multiclass"
-        variant="original",      # "original", "noisy", "noisy_kalman"
+        variant="original",      # "original", "noisy", "kalman", "noisy_kalman"
         batch_size=16,
         num_workers=0,
         sample_rate=16000,
@@ -50,7 +50,7 @@ class DroneDataModule(pl.LightningDataModule):
         n_mels=128,
         n_fft=1024,
         hop_length=256,
-        noise_std=0.01,
+        noise_std=0.005,
         kalman_q=1e-5,
         kalman_r=1e-3,
         train_ratio=0.7,
