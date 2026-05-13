@@ -1,7 +1,7 @@
 dataset_type,variant,num_classes,best_checkpoint,test_loss,test_acc,test_f1
-binary,original,2,logs\drone_mamba\binary_original\checkpoints\binary_original-epoch=00-val_acc=0.8752.ckpt,0.13952508568763733,0.8901536464691162,0.47094249725341797
-binary,noisy,2,logs\drone_mamba\binary_noisy\checkpoints\binary_noisy-epoch=08-val_acc=0.9966.ckpt,0.03306619077920914,0.9874786734580994,0.9689675569534302
-binary,noisy_kalman,2,logs\drone_mamba\binary_noisy_kalman\checkpoints\binary_noisy_kalman-epoch=00-val_acc=0.8752.ckpt,0.1418008804321289,0.8901536464691162,0.47094249725341797
-multiclass,original,3,logs\drone_mamba\multiclass_original\checkpoints\multiclass_original-epoch=11-val_acc=0.9453.ckpt,0.1191522628068924,0.9311326146125793,0.5524753332138062
-multiclass,noisy,3,logs\drone_mamba\multiclass_noisy\checkpoints\multiclass_noisy-epoch=00-val_acc=0.8934.ckpt,0.22461716830730438,0.88730788230896,0.3134298324584961
-multiclass,noisy_kalman,3,logs\drone_mamba\multiclass_noisy_kalman\checkpoints\multiclass_noisy_kalman-epoch=19-val_acc=0.9487.ckpt,0.12151529639959335,0.9391007423400879,0.6197683811187744
+binary,original,2,logs\drone_mamba\binary_original\checkpoints\binary_original-epoch=12-val_acc=0.9954.ckpt,0.14478421211242676,0.957313597202301,0.8971080780029297
+binary,noisy,2,logs\drone_mamba\binary_noisy\checkpoints\binary_noisy-epoch=01-val_acc=0.9595.ckpt,0.3462398052215576,0.8901536464691162,0.47094249725341797
+binary,noisy_kalman,2,logs\drone_mamba\binary_noisy_kalman\checkpoints\binary_noisy_kalman-epoch=19-val_acc=0.9920.ckpt,0.02560279704630375,0.9943084716796875,0.9853817224502563
+multiclass,original,3,logs\drone_mamba\multiclass_original\checkpoints\multiclass_original-epoch=00-val_acc=0.8934.ckpt,0.1959352046251297,0.88730788230896,0.3134298324584961
+multiclass,noisy,3,logs\drone_mamba\multiclass_noisy\checkpoints\multiclass_noisy-epoch=00-val_acc=0.8934.ckpt,0.2734614312648773,0.88730788230896,0.3134298324584961
+multiclass,noisy_kalman,3,logs\drone_mamba\multiclass_noisy_kalman\checkpoints\multiclass_noisy_kalman-epoch=14-val_acc=0.9430.ckpt,0.1083262711763382,0.9294251799583435,0.5656272172927856
