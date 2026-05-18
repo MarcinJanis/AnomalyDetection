@@ -18,9 +18,9 @@ class DroneClassifier(pl.LightningModule):
         )
 
         if num_classes == 2:
-            weights = torch.tensor([1.0, 8.0])
+            weights = torch.tensor([1.0, 2.0])
         else:
-            weights = torch.tensor([15.0, 15.0, 1.0])
+            weights = torch.tensor([1.4, 1.4, 1.0])
 
         self.register_buffer("class_weights", weights)
 

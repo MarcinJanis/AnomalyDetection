@@ -180,10 +180,11 @@ class DroneDataModule(pl.LightningDataModule):
         self.val_dataset = DroneAudioDataset(val_paths, val_labels, transform=transform)
         self.test_dataset = DroneAudioDataset(test_paths, test_labels, transform=transform)
 
-        labels = torch.tensor(self.train_labels)
-        class_counts = torch.bincount(labels)  # [count_0, count_1]
-        class_weights = 1. / class_counts.float()
-        sample_weights = class_weights[labels]
+        labels_tensor = torch.tensor(train_labels, dtype=torch.long)
+
+        class_counts = torch.bincount(labels_tensor)
+        class_weights = 1.0 / class_counts.float()
+        sample_weights = class_weights[labels_tensor]
 
         self.train_sampler = torch.utils.data.WeightedRandomSampler(
             weights=sample_weights,
